@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+.env.local
+.vscode/
+coverage/
+
+claude_desktop_config.json
