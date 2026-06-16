@@ -14,7 +14,7 @@ describe("MCP error handling", () => {
   test("invalid JSON produces a clean error", async () => {
     await client.init_session();
 
-    const res = await client.post_json("this is not json");
+    const res = await client.post_json("this is not valid json");
 
     expect(res.status).toBe(400);
     expect(res.body).toBeDefined();
