@@ -5,7 +5,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { randomUUID } from "crypto";
 import { z } from "zod";
 
-export function startMcpServer(app: express.Express) {
+export function startMcpServer(app: express.Express, testMode = false) {
   console.log(">>> startMcpServer() executing");
 
   // Typed session registry
@@ -49,6 +49,7 @@ export function startMcpServer(app: express.Express) {
 
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => sessionId,
+      enableJsonResponse: testMode,
     });
 
     void server.connect(transport);

@@ -18,7 +18,7 @@ export function startServer() {
   });
 
   app.listen(port, () => {
-    console.log(`Server listening on port ${port}`);
+    console.error(`Server listening on port ${port}`);
   });
 
   app.use(errorHandler);
