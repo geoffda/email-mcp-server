@@ -49,13 +49,14 @@
     "winston": "^3.19.0",
     "zod": "^3.25.76"
   },
-"lint-staged": {
-  "*.ts": [
-    "eslint --fix --max-warnings=0",
-    "prettier --write"
-  ],
-  "src/mcp/server.ts": "prettier --write",
-  "src/web-server.ts": "prettier --write",
-  "tests/helpers/mcp-test-client.ts": "prettier --write"
+  "lint-staged": {
+    "*.ts": [
+      "eslint --fix --max-warnings=0",
+      "prettier --write"
+    ],
+    "src/mcp/server.ts": "prettier --write",
+    "src/web-server.ts": "prettier --write",
+    "tests/helpers/mcp-test-client.ts": "prettier --write",
+    "package.json": "npm test"
   }
 }
