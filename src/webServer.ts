@@ -1,6 +1,6 @@
 import express from "express";
 import statusRouter from "./routes/status.js";
-import { errorHandler } from "./middleware/errorHandler.js";
+import { errorHandler } from "./middleware/error-handler.js";
 import { startMcpServer } from "./mcp/server.js";
 
 export function startServer() {

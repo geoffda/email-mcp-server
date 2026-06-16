@@ -1,5 +1,5 @@
 import express from "express";
-import { errorHandler } from "../middleware/errorHandler.js";
+import { errorHandler } from "../middleware/error-handler.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { randomUUID } from "crypto";
