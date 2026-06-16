@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "tsx watch src/index.ts",
+    "dev": "node dev.js",
     "lint": "eslint . --ext .ts",
     "format": "prettier --write ."
   },
@@ -31,6 +31,7 @@
     "typescript-eslint": "^7.18.0"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
@@ -39,7 +40,8 @@
     "jwks-rsa": "^4.0.1",
     "morgan": "^1.11.0",
     "msal-node": "^0.0.1-security",
-    "winston": "^3.19.0"
+    "winston": "^3.19.0",
+    "zod": "^3.25.76"
   },
   "lint-staged": {
     "*.ts": [
