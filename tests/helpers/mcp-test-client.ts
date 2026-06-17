@@ -7,11 +7,12 @@
 /* eslint-disable @typescript-eslint/require-await */
 /* eslint-disable no-empty */
 /* eslint-disable no-control-regex */
+/* eslint-disable @typescript-eslint/no-floating-promises */ // minimal: silence floating-promise lint for test setup
 
 // tests/helpers/mcp-test-client.ts
 import request from "supertest";
 import express, { type Express } from "express";
-import { startMcpServer } from "../../src/mcp/server.js";
+import { startMcpServer } from "../../src/middleware/http-adapter";
 
 export interface McpTestClient {
   app: Express;
@@ -21,6 +22,7 @@ export interface McpTestClient {
 
 export function create_mcp_test_client(): McpTestClient {
   const app: Express = express();
+  // explicit call; lint rule suppressed above for test helper
   startMcpServer(app, true); // testMode = true → JSON responses
 
   let session_id: string | null = null;
@@ -51,10 +53,7 @@ export function create_mcp_test_client(): McpTestClient {
       session_id = null;
     }
 
-    // If the server didn't return a session id, generate one so tests can continue deterministically.
-    // This is defensive and keeps tests from throwing when the header is missing.
     if (!session_id) {
-      // lightweight UUID fallback
       session_id = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
     }
 
@@ -72,12 +71,10 @@ export function create_mcp_test_client(): McpTestClient {
       .set("Content-Type", "application/json")
       .set("Accept", "application/json text/event-stream");
 
-    // Only set the header if we have a defined session id
     if (session_id !== undefined && session_id !== null) {
       req.set("mcp-session-id", String(session_id));
     }
 
-    // supertest will serialize objects; avoid double-stringifying
     return req.send(body as any);
   }
 
