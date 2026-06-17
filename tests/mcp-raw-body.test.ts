@@ -18,7 +18,7 @@ describe("MCP raw body handling", () => {
     const res = await client.post_json({
       jsonrpc: "2.0",
       id: "1",
-      method: "tools.call",
+      method: "tools/call",
       params: {
         name: "ping",
         arguments: {},

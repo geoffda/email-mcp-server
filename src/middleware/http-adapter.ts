@@ -20,14 +20,6 @@ import {
 type Session = McpSession;
 const sessions = new Map<string, Session>();
 
-function makeJsonRpcError(id: unknown, code: number, message: string) {
-  return {
-    jsonrpc: "2.0",
-    id: id ?? null,
-    error: { code, message },
-  };
-}
-
 async function streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
   const chunks: Buffer[] = [];
   return new Promise<Buffer>((resolve, reject) => {
@@ -246,60 +238,41 @@ export function createMcpMiddleware(testMode = false) {
         sessions.set(sessionId, session);
       }
 
+      // If the incoming request is a JSON-RPC tools.call, trust the SDK/transport
+      // to be the authoritative router for tool handlers. Forward the request
+      // to the session transport rather than attempting to look up a local map.
       if (
         parsedBody &&
         parsedBody.jsonrpc === "2.0" &&
         parsedBody.method === "tools.call"
       ) {
-        const id = parsedBody.id ?? null;
-        const params = parsedBody.params ?? {};
-        const toolName = params?.name;
-        const toolArgs = params?.arguments ?? {};
-
-        if (!toolName) {
-          const errObj = makeJsonRpcError(
-            id,
-            -32602,
-            "Invalid params: missing tool name",
-          );
-          res.status(200).json(errObj);
-          restoreCapture();
-          return;
-        }
-
-        const toolHandler = session.toolsMap.get(toolName);
-        if (!toolHandler) {
-          const errObj = makeJsonRpcError(id, -32601, "Method not found");
-          res.status(200).json(errObj);
-          restoreCapture();
-          return;
-        }
+        const reqLike = rawBuffer
+          ? bufferToRequestLike(rawBuffer, req)
+          : (req as any);
 
         try {
-          const result = await Promise.resolve(toolHandler(toolArgs));
-          const response = {
-            jsonrpc: "2.0",
-            id,
-            result,
-          };
-          res.status(200).json(response);
-          restoreCapture();
-          return;
-        } catch (invokeErr: unknown) {
+          await session.transport.handleRequest(reqLike, res as any);
+        } catch (err: unknown) {
           console.error(
-            "[mcp] tool invocation threw:",
-            (invokeErr as any)?.message ?? String(invokeErr),
+            "[mcp] transport.handleRequest threw while handling tools.call:",
+            (err as any)?.message ?? String(err),
           );
-          console.error((invokeErr as any)?.stack ?? "");
-          const errObj = makeJsonRpcError(
-            id,
-            -32000,
-            (invokeErr as any)?.message ?? "Tool invocation failed",
-          );
-          res.status(200).json(errObj);
+          console.error((err as any)?.stack ?? "");
+          if (!res.headersSent) {
+            res.status(200).json({
+              jsonrpc: "2.0",
+              id: parsedBody.id ?? null,
+              error: {
+                code: -32000,
+                message: "Tool invocation failed",
+                data: String((err as any)?.stack ?? err),
+              },
+            });
+          }
+        } finally {
           restoreCapture();
-          return;
         }
+        return;
       }
 
       if (rawBuffer) {
