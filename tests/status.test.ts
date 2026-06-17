@@ -8,7 +8,7 @@ import { startMcpServer } from "../src/mcp/server";
 describe("Basic endpoints", () => {
   let testApp: Express;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     testApp = express();
     startMcpServer(testApp);
   });
