@@ -1,14 +1,12 @@
-/* eslint-disable */
-
 import { describe, test, expect, beforeEach } from "vitest";
 import request from "supertest";
 import express, { type Express } from "express";
-import { startMcpServer } from "../src/mcp/server";
+import { startMcpServer } from "../src/mcp/server.js";
 
 describe("Basic endpoints", () => {
   let testApp: Express;
 
-  beforeEach(() => {
+  beforeEach((): void => {
     testApp = express();
     startMcpServer(testApp);
   });
