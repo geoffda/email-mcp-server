@@ -12,7 +12,7 @@
 // tests/helpers/mcp-test-client.ts
 import request from "supertest";
 import express, { type Express } from "express";
-import { startMcpServer } from "../../src/mcp/server";
+import { startMcpServer } from "../../src/mcp/server.js";
 
 export interface McpTestClient {
   app: Express;
