@@ -8,12 +8,12 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
-
-    "rootDir": ".",
+    "sourceMap": true,
+    "rootDir": "src",
     "outDir": "dist"
   },
   "include": [
-    "src/**/*.ts",
-    "tests/**/*.ts"
-  ]
+    "src/**/*.ts"
+  ],
+  "exclude": ["tests"]
 }

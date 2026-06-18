@@ -7,28 +7,27 @@
 /* eslint-disable @typescript-eslint/require-await */
 /* eslint-disable no-empty */
 /* eslint-disable no-control-regex */
-/* eslint-disable @typescript-eslint/no-floating-promises */ // minimal: silence floating-promise lint for test setup
+/* eslint-disable @typescript-eslint/no-floating-promises */
 
 // tests/helpers/mcp-test-client.ts
 import request from "supertest";
-import express, { type Express } from "express";
-import { startMcpServer } from "../../src/mcp/server.js";
+import type { Server } from "http";
+import { startServer } from "../../src/web-server.js";
 
 export interface McpTestClient {
-  app: Express;
+  server: Server;
   init_session: () => Promise<string>;
   post_json: (body: unknown) => Promise<request.Response>;
 }
 
 export function create_mcp_test_client(): McpTestClient {
-  const app: Express = express();
-  // explicit call; lint rule suppressed above for test helper
-  startMcpServer(app, true); // testMode = true → JSON responses
+  // Start the REAL server
+  const server = startServer(true);
 
   let session_id: string | null = null;
 
   async function init_session() {
-    const res = await request(app)
+    const res = await request(server)
       .post("/mcp")
       .set("Content-Type", "application/json")
       .set("Accept", "application/json text/event-stream")
@@ -43,7 +42,6 @@ export function create_mcp_test_client(): McpTestClient {
         },
       });
 
-    // Normalize header value (could be string | string[] | undefined)
     const raw = res.headers["mcp-session-id"];
     if (Array.isArray(raw)) {
       session_id = raw[0] ?? null;
@@ -65,21 +63,21 @@ export function create_mcp_test_client(): McpTestClient {
       await init_session();
     }
 
-    const req = request(app)
+    const req = request(server)
       .post("/mcp")
       .set("mcp-protocol-version", "2024-11-05")
       .set("Content-Type", "application/json")
       .set("Accept", "application/json text/event-stream");
 
-    if (session_id !== undefined && session_id !== null) {
-      req.set("mcp-session-id", String(session_id));
+    if (session_id) {
+      req.set("mcp-session-id", session_id);
     }
 
     return req.send(body as any);
   }
 
   return {
-    app,
+    server,
     init_session,
     post_json,
   };

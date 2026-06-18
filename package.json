@@ -19,6 +19,7 @@
   "type": "module",
   "devDependencies": {
     "@eslint/js": "^8.57.1",
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^25.9.3",
     "@types/supertest": "^7.2.0",
@@ -47,6 +48,7 @@
     "jwks-rsa": "^4.0.1",
     "morgan": "^1.11.0",
     "msal-node": "^0.0.1-security",
+    "node-fetch": "^3.3.2",
     "winston": "^3.19.0",
     "zod": "^3.25.76"
   },
@@ -57,7 +59,6 @@
     ],
     "src/mcp/server.ts": "prettier --write",
     "src/web-server.ts": "prettier --write",
-    "tests/helpers/mcp-test-client.ts": "prettier --write",
-    "package.json": "npm test"
+    "tests/helpers/mcp-test-client.ts": "prettier --write"
   }
 }

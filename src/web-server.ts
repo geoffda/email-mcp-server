@@ -1,24 +1,26 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 
 import express from "express";
 import statusRouter from "./routes/status.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { startMcpServer } from "./mcp/server.js";
+import { logger } from "./logging/Logger.js";
 
-export function startServer() {
+export function startServer(testMode = false) {
   const app = express();
   const port = process.env.PORT || 3000;
 
-  /**
-   * IMPORTANT:
-   * We do NOT call express.json() or body-parser anywhere.
-   * MCP requires raw bytes, and Express must not consume the body.
-   */
+  app.use(
+    express.json({
+      verify: (req: any, _res, buf) => {
+        req.rawBody = buf?.toString() ?? "";
+      },
+    }),
+  );
 
-  // Mount MCP endpoint (raw HTTP → MCP transport)
-  startMcpServer(app);
+  startMcpServer(app, testMode);
 
-  // Other routes (no JSON body parsing needed)
   app.use("/api", statusRouter);
 
   app.get("/", (req, res) => {
@@ -27,7 +29,9 @@ export function startServer() {
 
   app.use(errorHandler);
 
-  app.listen(port, () => {
-    console.error(`Server listening on port ${port}`);
+  const server = app.listen(port, () => {
+    logger.info(`Server listening on port ${port}`);
   });
+
+  return server; // ⭐ THIS FIXES YOUR TEST CLIENT
 }

@@ -2,103 +2,187 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 
+// src/mcp/server.ts
+import "dotenv/config";
 import type { Express, Request, Response } from "express";
+import cors from "cors";
+import { randomUUID } from "crypto";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { randomUUID } from "crypto";
+import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
+import { logger } from "../logging/Logger.js";
 
-export const MCP_DEBUG = process.env.MCP_DEBUG === "true";
-
-export function dbg(...args: unknown[]) {
-  if (MCP_DEBUG) console.debug(...args);
-}
-
-export type McpSession = {
-  server: McpServer;
-  transport: StreamableHTTPServerTransport;
+const CONFIG = {
+  host: process.env.HOST || "localhost",
+  port: Number(process.env.PORT) || 3000,
 };
 
-const sessions = new Map<string, McpSession>();
-
-export function createMcpSession(
-  sessionId: string,
-  testMode = false,
-): McpSession {
-  dbg(`[mcp] creating session ${sessionId}`);
-
-  const server = new McpServer({
-    name: "email-mcp-server",
-    version: "0.0.1",
+export function startMcpServer(app: Express, testMode = false) {
+  //
+  // Logging middleware
+  //
+  app.use((req, _res, next) => {
+    logger.info("[incoming]", req.method, req.url);
+    logger.debug("[headers]", req.headers);
+    next();
   });
 
-  server.registerTool(
-    "ping",
-    {
-      description: "Simple health check tool",
-      inputSchema: z.object({}),
-      outputSchema: z.object({
-        ok: z.boolean(),
-        timestamp: z.number(),
-      }),
-    },
-    () => ({
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify({
-            ok: true,
-            timestamp: Date.now(),
-          }),
-        },
-      ],
-      structuredContent: {
-        ok: true,
-        timestamp: Date.now(),
-      },
+  //
+  // CORS
+  //
+  app.use(
+    cors({
+      origin: "*",
+      exposedHeaders: ["mcp-session-id", "Mcp-Session-Id"],
     }),
   );
 
-  const transport = new StreamableHTTPServerTransport({
-    sessionIdGenerator: () => sessionId,
-    enableJsonResponse: testMode,
+  //
+  // Session map
+  //
+  const transports: Record<string, StreamableHTTPServerTransport> = {};
+
+  //
+  // MCP server factory
+  //
+  function createMcpServer() {
+    const server = new McpServer({
+      name: "email-mcp-server",
+      version: "0.0.1",
+    });
+
+    server.registerTool(
+      "ping",
+      {
+        description: "Simple health check tool",
+        inputSchema: z.object({}),
+        outputSchema: z.object({
+          ok: z.boolean(),
+          timestamp: z.number(),
+        }),
+      },
+      () => ({
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              ok: true,
+              timestamp: Date.now(),
+            }),
+          },
+        ],
+        structuredContent: {
+          ok: true,
+          timestamp: Date.now(),
+        },
+      }),
+    );
+
+    return server;
+  }
+
+  //
+  // POST /mcp
+  //
+  app.post("/mcp", async (req: Request, res: Response) => {
+    const sessionIdHeader = req.headers["mcp-session-id"] as string | undefined;
+    let transport: StreamableHTTPServerTransport;
+
+    //
+    // CASE 1: Existing session
+    //
+    if (sessionIdHeader && transports[sessionIdHeader]) {
+      transport = transports[sessionIdHeader];
+    }
+
+    //
+    // CASE 2: Unknown session ID → create new session with that ID
+    //
+    else if (sessionIdHeader && !transports[sessionIdHeader]) {
+      transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: () => sessionIdHeader,
+        enableJsonResponse: testMode,
+        onsessioninitialized: () => {
+          transports[sessionIdHeader] = transport;
+        },
+      });
+
+      transport.onclose = () => {
+        delete transports[sessionIdHeader];
+      };
+
+      const server = createMcpServer();
+      await server.connect(transport);
+    }
+
+    //
+    // CASE 3: No session ID + initialization request
+    //
+    else if (!sessionIdHeader && isInitializeRequest(req.body)) {
+      transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: () => randomUUID(),
+        enableJsonResponse: testMode,
+        onsessioninitialized: (sessionId) => {
+          transports[sessionId] = transport;
+        },
+      });
+
+      transport.onclose = () => {
+        if (transport.sessionId) {
+          delete transports[transport.sessionId];
+        }
+      };
+
+      const server = createMcpServer();
+      await server.connect(transport);
+    }
+
+    //
+    // CASE 4: Invalid request
+    //
+    else {
+      res.status(400).json({
+        jsonrpc: "2.0",
+        error: {
+          code: -32000,
+          message: "Bad Request: No valid session ID provided",
+        },
+        id: null,
+      });
+      return;
+    }
+
+    //
+    // Handle MCP request
+    //
+    await transport.handleRequest(req as any, res as any, req.body);
   });
 
-  void server.connect(transport);
-
-  dbg(`[mcp] session ${sessionId} created`);
-  return { server, transport };
-}
-
-/**
- * Minimal adapter: Express hands raw HTTP request/response directly to MCP transport.
- * No body parsing. No reconstruction. No JSON parsing. No raw-body hacks.
- */
-export function startMcpServer(app: Express, testMode = false) {
-  app.post("/mcp", async (req: Request, res: Response) => {
-    const sessionId = req.headers["mcp-session-id"]?.toString() || randomUUID();
-
-    let session = sessions.get(sessionId);
-    if (!session) {
-      session = createMcpSession(sessionId, testMode);
-      sessions.set(sessionId, session);
+  //
+  // GET/DELETE /mcp
+  //
+  async function handleSession(req: Request, res: Response) {
+    const sessionId = req.headers["mcp-session-id"] as string | undefined;
+    if (!sessionId || !transports[sessionId]) {
+      res.status(400).send("Invalid or missing session ID");
+      return;
     }
 
-    try {
-      await session.transport.handleRequest(req as any, res as any);
-    } catch (err: any) {
-      console.error("[mcp] transport error:", err?.message ?? err);
-      if (!res.headersSent) {
-        res.status(200).json({
-          jsonrpc: "2.0",
-          id: null,
-          error: {
-            code: -32700,
-            message: "Parse error",
-            data: String(err?.stack ?? err),
-          },
-        });
-      }
-    }
+    const transport = transports[sessionId];
+    await transport.handleRequest(req as any, res as any);
+  }
+
+  app.get("/mcp", handleSession);
+  app.delete("/mcp", handleSession);
+
+  //
+  // Start server
+  //
+  app.listen(CONFIG.port, CONFIG.host, () => {
+    logger.info(
+      `🚀 MCP Server running at http://${CONFIG.host}:${CONFIG.port}`,
+    );
+    logger.info(`📡 MCP endpoint: http://${CONFIG.host}:${CONFIG.port}/mcp`);
   });
 }

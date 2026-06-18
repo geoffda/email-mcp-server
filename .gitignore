@@ -4,5 +4,8 @@ dist/
 .env.local
 .vscode/
 coverage/
+tests/**/*.map
+tests/**/*.js
+
 
 claude_desktop_config.json

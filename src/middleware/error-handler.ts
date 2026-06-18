@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
+import { logger } from "../logging/Logger.js";
 
 export function errorHandler(
   err: unknown,
@@ -24,10 +25,10 @@ export function errorHandler(
 
   // Log meaningful errors only
   if (err instanceof Error) {
-    console.error("Unhandled error:", err.message);
-    console.error(err.stack);
+    logger.error("Unhandled error:", err.message);
+    logger.error(err.stack);
   } else {
-    console.error("Unhandled non-Error value:", err);
+    logger.error("Unhandled non-Error value:", err);
   }
 
   if (!res.headersSent) {
