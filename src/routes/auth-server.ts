@@ -42,4 +42,27 @@ router.post(
   },
 );
 
+router.get("/authorize", (req: Request, res: Response) => {
+  const { redirect_uri, state } = req.query;
+
+  if (!redirect_uri || typeof redirect_uri !== "string") {
+    return res
+      .status(400)
+      .json({
+        error: "invalid_request",
+        error_description: "Missing redirect_uri",
+      });
+  }
+
+  // Generate a fake authorization code
+  const code = crypto.randomUUID();
+
+  // Redirect back to the client
+  const redirectUrl = new URL(redirect_uri);
+  redirectUrl.searchParams.set("code", code);
+  if (state) redirectUrl.searchParams.set("state", String(state));
+
+  res.redirect(302, redirectUrl.toString());
+});
+
 export default router;
