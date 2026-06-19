@@ -1,5 +1,6 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
+import crypto from "crypto";
 
 const router = Router();
 
@@ -46,12 +47,10 @@ router.get("/authorize", (req: Request, res: Response) => {
   const { redirect_uri, state } = req.query;
 
   if (!redirect_uri || typeof redirect_uri !== "string") {
-    return res
-      .status(400)
-      .json({
-        error: "invalid_request",
-        error_description: "Missing redirect_uri",
-      });
+    return res.status(400).json({
+      error: "invalid_request",
+      error_description: "Missing redirect_uri",
+    });
   }
 
   // Generate a fake authorization code
@@ -63,6 +62,47 @@ router.get("/authorize", (req: Request, res: Response) => {
   if (state) redirectUrl.searchParams.set("state", String(state));
 
   res.redirect(302, redirectUrl.toString());
+});
+
+router.post("/token", (req: Request, res: Response) => {
+  const body = req.body as Record<string, unknown>;
+
+  const grant_type = body["grant_type"];
+  const code = body["code"];
+  const code_verifier = body["code_verifier"];
+
+  if (grant_type !== "authorization_code") {
+    return res.status(400).json({
+      error: "unsupported_grant_type",
+      error_description: "Only authorization_code is supported",
+    });
+  }
+
+  if (!code) {
+    return res.status(400).json({
+      error: "invalid_request",
+      error_description: "Missing authorization code",
+    });
+  }
+
+  if (!code_verifier) {
+    return res.status(400).json({
+      error: "invalid_request",
+      error_description: "Missing code_verifier",
+    });
+  }
+
+  const accessToken = crypto.randomUUID();
+  const refreshToken = crypto.randomUUID();
+
+  res.json({
+    access_token: accessToken,
+    token_type: "Bearer",
+    expires_in: 3600,
+    refresh_token: refreshToken,
+    scope:
+      `openid profile offline_access ${process.env.MCP_SCOPE ?? ""}`.trim(),
+  });
 });
 
 export default router;

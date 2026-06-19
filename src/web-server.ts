@@ -18,6 +18,7 @@ export function startServer(testMode = false) {
       },
     }),
   );
+  app.use(express.urlencoded({ extended: true }));
 
   startMcpServer(app, testMode);
 
