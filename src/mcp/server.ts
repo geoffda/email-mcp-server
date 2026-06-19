@@ -12,6 +12,10 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { logger } from "../logging/Logger.js";
+import protectedResource from "../routes/protected-resource.js";
+import authServer from "../routes/auth-server.js";
+import { requireAuth } from "../middleware/require-auth.js";
+import { notFound } from "../middleware/not-found.js";
 
 const CONFIG = {
   host: process.env.HOST || "localhost",
@@ -82,10 +86,20 @@ export function startMcpServer(app: Express, testMode = false) {
     return server;
   }
 
+  // ----------------------------------------------------
+  // Authentication sub routes
+  // ----------------------------------------------------
+
+  // Well known resource.
+  app.use(protectedResource);
+  app.use(authServer);
+
+  // ----------------------------------------------------
+
   //
   // POST /mcp
   //
-  app.post("/mcp", async (req: Request, res: Response) => {
+  app.post("/mcp", requireAuth, async (req: Request, res: Response) => {
     const sessionIdHeader = req.headers["mcp-session-id"] as string | undefined;
     let transport: StreamableHTTPServerTransport;
 
@@ -175,6 +189,9 @@ export function startMcpServer(app: Express, testMode = false) {
 
   app.get("/mcp", handleSession);
   app.delete("/mcp", handleSession);
+
+  // Catch-all 404 (must be last)
+  app.use(notFound);
 
   //
   // Start server
