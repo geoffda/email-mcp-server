@@ -1,7 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-
 // src/mcp/server.ts
 import "dotenv/config";
 import type { Express, Request, Response } from "express";
@@ -12,11 +8,6 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { logger } from "../logging/Logger.js";
-
-const CONFIG = {
-  host: process.env.HOST || "localhost",
-  port: Number(process.env.PORT) || 3000,
-};
 
 export function startMcpServer(app: Express, testMode = false) {
   //
@@ -156,7 +147,7 @@ export function startMcpServer(app: Express, testMode = false) {
     //
     // Handle MCP request
     //
-    await transport.handleRequest(req as any, res as any, req.body);
+    await transport.handleRequest(req, res, req.body);
   });
 
   //
@@ -170,19 +161,9 @@ export function startMcpServer(app: Express, testMode = false) {
     }
 
     const transport = transports[sessionId];
-    await transport.handleRequest(req as any, res as any);
+    await transport.handleRequest(req, res);
   }
 
   app.get("/mcp", handleSession);
   app.delete("/mcp", handleSession);
-
-  //
-  // Start server
-  //
-  app.listen(CONFIG.port, CONFIG.host, () => {
-    logger.info(
-      `🚀 MCP Server running at http://${CONFIG.host}:${CONFIG.port}`,
-    );
-    logger.info(`📡 MCP endpoint: http://${CONFIG.host}:${CONFIG.port}/mcp`);
-  });
 }

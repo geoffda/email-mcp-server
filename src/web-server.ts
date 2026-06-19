@@ -7,6 +7,7 @@ import entraDiscoveryRouter from "./routes/entra-discovery.js"; // ⭐ ADD THIS
 import { errorHandler } from "./middleware/error-handler.js";
 import { startMcpServer } from "./mcp/server.js";
 import { logger } from "./logging/Logger.js";
+import { requireEntraAuth } from "./middleware/requireEntraAuth.js";
 
 export function startServer(testMode = false) {
   const app = express();
@@ -23,6 +24,11 @@ export function startServer(testMode = false) {
   // ⭐ Mount Entra discovery BEFORE MCP
   app.use(entraDiscoveryRouter);
 
+  // Protect the MCP endpoint
+  if (!testMode) {
+    app.use("/mcp", requireEntraAuth);
+  }
+
   // ⭐ MCP server mounts /mcp
   startMcpServer(app, testMode);
 
@@ -36,6 +42,8 @@ export function startServer(testMode = false) {
 
   const server = app.listen(port, () => {
     logger.info(`Server listening on port ${port}`);
+    logger.info(`🚀 MCP Server running at http://localhost:${port}`);
+    logger.info(`📡 MCP endpoint: http://localhost:${port}/mcp`);
   });
 
   return server;
