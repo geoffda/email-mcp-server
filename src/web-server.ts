@@ -3,6 +3,7 @@
 
 import express from "express";
 import statusRouter from "./routes/status.js";
+import entraDiscoveryRouter from "./routes/entra-discovery.js"; // ⭐ ADD THIS
 import { errorHandler } from "./middleware/error-handler.js";
 import { startMcpServer } from "./mcp/server.js";
 import { logger } from "./logging/Logger.js";
@@ -19,6 +20,10 @@ export function startServer(testMode = false) {
     }),
   );
 
+  // ⭐ Mount Entra discovery BEFORE MCP
+  app.use(entraDiscoveryRouter);
+
+  // ⭐ MCP server mounts /mcp
   startMcpServer(app, testMode);
 
   app.use("/api", statusRouter);
@@ -33,5 +38,5 @@ export function startServer(testMode = false) {
     logger.info(`Server listening on port ${port}`);
   });
 
-  return server; // ⭐ THIS FIXES YOUR TEST CLIENT
+  return server;
 }
